@@ -1,28 +1,32 @@
-import tensorflow as tf
-from align import detect_face
-import cv2
-import imutils
-import argparse
-import time
-import os
-import ctypes
+import numpy as np
 from threading import Thread, Lock
+import ctypes
+import os
+import time
+import argparse
+import imutils
+import cv2
+import numba
+from align import detect_face
+import tensorflow as tf
+import sys
+import resize
+sys.path.append('..')
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-#os.environ["OMP_NUM_THREADS"] = "6" # export OMP_NUM_THREADS=4
-#os.environ["OPENBLAS_NUM_THREADS"] = "4" # export OPENBLAS_NUM_THREADS=4 
-os.environ["MKL_NUM_THREADS"] = "10" # export MKL_NUM_THREADS=6
-#os.environ["VECLIB_MAXIMUM_THREADS"] = "0" # export VECLIB_MAXIMUM_THREADS=4
-os.environ["NUMEXPR_NUM_THREADS"] = "20" # export NUMEXPR_NUM_THREADS=6
+# os.environ["OMP_NUM_THREADS"] = "6" # export OMP_NUM_THREADS=4
+# os.environ["OPENBLAS_NUM_THREADS"] = "4" # export OPENBLAS_NUM_THREADS=4
+os.environ["MKL_NUM_THREADS"] = "10"  # export MKL_NUM_THREADS=6
+# os.environ["VECLIB_MAXIMUM_THREADS"] = "0" # export VECLIB_MAXIMUM_THREADS=4
+os.environ["NUMEXPR_NUM_THREADS"] = "20"  # export NUMEXPR_NUM_THREADS=6
 #parser = argparse.ArgumentParser()
 #parser.add_argument("--img", type = str, required=True)
 #args = parser.parse_args()
-import numpy as np
-
 
 
 # some constants kept as default from facenet
 minsize = 40
-threshold = [0.55, 0.65, 0.70]
+threshold = [0.60, 0.65, 0.70]
 factor = 0.7098
 margin = 0
 input_image_size = 160
@@ -33,20 +37,31 @@ pnet, rnet, onet = detect_face.create_mtcnn(
     sess, '/Users/amir/person_recognition/src/align')
 
 
-def getFace(img):
+def getFace(img, compress_frame=True):
     faces = []
-    img_size = np.asarray(img.shape)[0:2]
+    #print (type(img))
+    img_size = img.shape[0:2]
+    if compress_frame is True:
+        resize_img = resize.frame_resizer(img,400)
+        #img = np.resize(img, (288, 352))
+    #print (img.shape)
+    #print(img_size)
     bounding_boxes, _ = detect_face.detect_face(
         img, minsize, pnet, rnet, onet, threshold, factor)
-    print (bbox_resizer(bounding_boxes,img))
+    #print (bounding_boxes.shape)
+    if compress_frame is True :
+        bounding_boxes = bbox_resizer(
+            img, bounding_boxes, size_frame=(288, 352))
     if not len(bounding_boxes) == 0:
         for face in bounding_boxes:
             if face[4] > 0.50:
                 #det = np.squeeze(face[0:4])
                 bb = np.zeros(4, dtype=np.int32)
                 _margin = float(np.divide(margin, 2))
-                bb[0] = np.maximum(np.subtract(face[0], _margin), -float(img_size[1]))
-                bb[1] = np.maximum(np.subtract(face[1], _margin), -float(img_size[0]))
+                bb[0] = np.maximum(np.subtract(
+                    face[0], _margin), -float(img_size[1]))
+                bb[1] = np.maximum(np.subtract(
+                    face[1], _margin), -float(img_size[0]))
                 bb[2] = np.minimum(np.add(face[2], _margin),
                                    float(img_size[1]))
                 bb[3] = np.minimum(np.add(face[3], _margin),
@@ -61,37 +76,38 @@ def getFace(img):
                 #print (faces)
     return faces
 
-def bbox_resizer(bboxs,size_frame=(200,200)):
+
+def bbox_resizer(frame, bboxs, size_frame=(200, 200)):
     # imageToPredict = cv2.imread("img.jpg", 3)
     # Note: flipped comparing to your original code!
     # x_ = imageToPredict.shape[0]
     # y_ = imageToPredict.shape[1]
-    _bbox=[]
-    for bbox in bboxs:
+    new_bbox = []
+    for i in range(len(bboxs)):
+        bbox=bboxs[i]
         y_ = frame.shape[0]
         x_ = frame.shape[1]
-        x_scale = np.divide(size_frame[0] , x_)
-        y_scale = np.divide(size_frame[1] , y_)
+        x_scale = np.divide(size_frame[0], x_)
+        y_scale = np.divide(size_frame[1], y_)
         #print(x_scale, y_scale)
         #frame = cv2.resize(frame, resize);
-        #print(img.shape)
+        # print(img.shape)
         #img = np.array(img);
 
         # original frame as named values
-        print(bbox.shape)
-        (origLeft, origTop, origRight, origBottom) = bbox.shape[0:4]
-
-        x = int(np.round(np.multiply(origLeft , x_scale)))
-        y = int(np.round(np.multiply(origTop , y_scale)))
-        xmax = int(np.round(np.multiply(origRight , x_scale)))
+        # print(bbox[0:4])
+        origLeft, origTop, origRight, origBottom = bbox[0:4]
+        #print ("x_scale",x_scale)
+        x = int(np.round(np.multiply(origLeft, x_scale)))
+        y = int(np.round(np.multiply(origTop, y_scale)))
+        xmax = int(np.round(np.multiply(origRight, x_scale)))
         ymax = int(np.round(np.multiply(origBottom, y_scale)))
-        _bbox.append([x,y,xmax,ymax])
-    return {}
-    # Box.drawBox([[1, 0, x, y, xmax, ymax]], img)
-    #drawBox([[1, 0, x, y, xmax, ymax]], img)
+        new_bbox.append([x, y, xmax, ymax, bbox[4]])
+    return np.asarray(new_bbox)
+
 
 class WebcamVideoStream:
-    def __init__(self, src=0, width=500, height=500, fps=30):
+    def __init__(self, src=0, width=480, height=640, fps=30):
         self.stream = cv2.VideoCapture(src)
         self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
@@ -133,14 +149,15 @@ class WebcamVideoStream:
 
 
 if __name__ == "__main__":
-    vs = WebcamVideoStream(src=0, width=200, height=200, fps=60).start()
+    vs = WebcamVideoStream(src=1, width=640, height=480, fps=60).start()
     while True:
         frame = vs.read()
         # if ret:
         #frame = np.array(frame)
     #img = imutils.resize(img, width=1000)
         timestart = time.clock()
-        faces = getFace(frame)
+        print("resize",vs.stream.get(cv2.CAP_PROP_FRAME_HEIGHT),vs.stream.get(cv2.CAP_PROP_FRAME_WIDTH))
+        faces = getFace(frame,compress_frame=False)
         print(time.clock()-timestart)
         for face in faces:
             cv2.rectangle(frame, (face['rect'][0], face['rect'][1]),
@@ -150,4 +167,5 @@ if __name__ == "__main__":
             break
 
     vs.stop()
+
     cv2.destroyAllWindows()
