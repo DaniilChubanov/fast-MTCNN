@@ -25,11 +25,10 @@ os.environ["NUMEXPR_NUM_THREADS"] = "20"  # export NUMEXPR_NUM_THREADS=6
 
 
 # some constants kept as default from facenet
-minsize = 40
-threshold = [0.60, 0.65, 0.70]
+minsize = 30
+threshold = [0.65, 0.65, 0.70]
 factor = 0.7098
 margin = 0
-input_image_size = 160
 
 sess = tf.Session()
 # read pnet, rnet, onet models from align directory and files are det1.npy, det2.npy, det3.npy
@@ -39,19 +38,22 @@ pnet, rnet, onet = detect_face.create_mtcnn(
 
 def getFace(img, compress_frame=True):
     faces = []
+    bounding_boxes=None
     #print (type(img))
     img_size = img.shape[0:2]
     if compress_frame is True:
-        resize_img = resize.frame_resizer(img,400)
+        resize_img = resize.frame_resizer(img, 400)
+        bounding_boxes, _ = detect_face.detect_face(
+        resize_img, minsize, pnet, rnet, onet, threshold, factor)
+        bounding_boxes = bbox_resizer(
+            img, bounding_boxes, size_frame=resize_img.shape[0:2])
         #img = np.resize(img, (288, 352))
     #print (img.shape)
     #print(img_size)
-    bounding_boxes, _ = detect_face.detect_face(
-        img, minsize, pnet, rnet, onet, threshold, factor)
+    else:
+        bounding_boxes, _ = detect_face.detect_face(
+            img, minsize, pnet, rnet, onet, threshold, factor)
     #print (bounding_boxes.shape)
-    if compress_frame is True :
-        bounding_boxes = bbox_resizer(
-            img, bounding_boxes, size_frame=(288, 352))
     if not len(bounding_boxes) == 0:
         for face in bounding_boxes:
             if face[4] > 0.50:
@@ -76,15 +78,14 @@ def getFace(img, compress_frame=True):
                 #print (faces)
     return faces
 
-
-def bbox_resizer(frame, bboxs, size_frame=(200, 200)):
+@numba.autojit
+def bbox_resizer(frame, bboxs, size_frame):
     # imageToPredict = cv2.imread("img.jpg", 3)
     # Note: flipped comparing to your original code!
     # x_ = imageToPredict.shape[0]
     # y_ = imageToPredict.shape[1]
     new_bbox = []
-    for i in range(len(bboxs)):
-        bbox=bboxs[i]
+    for bbox in bboxs:
         y_ = frame.shape[0]
         x_ = frame.shape[1]
         x_scale = np.divide(size_frame[0], x_)
@@ -149,14 +150,14 @@ class WebcamVideoStream:
 
 
 if __name__ == "__main__":
-    vs = WebcamVideoStream(src=1, width=640, height=480, fps=60).start()
+    vs = WebcamVideoStream(src=0, width=640, height=480, fps=60).start()
     while True:
         frame = vs.read()
         # if ret:
         #frame = np.array(frame)
     #img = imutils.resize(img, width=1000)
         timestart = time.clock()
-        print("resize",vs.stream.get(cv2.CAP_PROP_FRAME_HEIGHT),vs.stream.get(cv2.CAP_PROP_FRAME_WIDTH))
+        print("size",vs.stream.get(cv2.CAP_PROP_FRAME_HEIGHT),vs.stream.get(cv2.CAP_PROP_FRAME_WIDTH))
         faces = getFace(frame,compress_frame=False)
         print(time.clock()-timestart)
         for face in faces:
