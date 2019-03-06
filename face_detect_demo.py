@@ -7,14 +7,14 @@ import argparse
 import imutils
 import cv2
 import numba
-from align import detect_face
+from align import detect_face,_detect_face
 import tensorflow as tf
 import sys
 import resize
 from scipy import misc
 
 sys.path.append('..')
-
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 # os.environ["OMP_NUM_THREADS"] = "6" # export OMP_NUM_THREADS=4
 # os.environ["OPENBLAS_NUM_THREADS"] = "4" # export OPENBLAS_NUM_THREADS=4
@@ -27,8 +27,8 @@ os.environ["NUMEXPR_NUM_THREADS"] = "20"  # export NUMEXPR_NUM_THREADS=6
 
 
 # some constants kept as default from facenet
-minsize = 30
-threshold = [0.60, 0.65, 0.65]
+minsize = 50
+threshold = [0.60, 0.60, 0.60]
 factor = 0.709
 margin = 0
 face_crop_size=160
@@ -45,7 +45,7 @@ def getFace(img, compress_frame=True):
     img_size = img.shape[0:2]
     if compress_frame is True:
         resize_img = resize.frame_resizer(img, 300)
-        bounding_boxes, _ = detect_face.detect_face(
+        bounding_boxes, _ = _detect_face.detect_face(
             resize_img, minsize, pnet, rnet, onet, threshold, factor)
         bounding_boxes = bbox_resizer(
             img, bounding_boxes, size_frame=resize_img.shape[0:2])
@@ -151,11 +151,11 @@ class WebcamVideoStream:
 
 
 if __name__ == "__main__":
-    vs = WebcamVideoStream(src=0, width=640, height=480, fps=60).start()
+    vs = WebcamVideoStream(src=1, width=640, height=480, fps=60).start()
     while True:
         frame = vs.read()
         timestart = time.clock()
-        faces = getFace(frame, compress_frame=True)
+        faces = getFace(frame, compress_frame=False)
         print(time.clock()-timestart)
         for face in faces:
             cv2.rectangle(frame, (face['rect'][0], face['rect'][1]),
