@@ -322,20 +322,20 @@ def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
     w = img.shape[1]
     minl = np.amin([h, w])
     m = 12.0/minsize
-    minl = minl*m
+    minl = np.multiply(minl,m)
     # create scale pyramid
     scales = []
     while minl >= 12:
-        scales += [m*np.power(factor, factor_count)]
-        minl = minl*factor
+        scales += [np.multiply(m,np.power(factor, factor_count))]
+        minl = np.multiply(minl,factor)
         factor_count += 1
 
     # first stage
     for scale in scales:
-        hs = int(np.ceil(h*scale))
-        ws = int(np.ceil(w*scale))
+        hs = int(np.ceil(np.multiply(h,scale)))
+        ws = int(np.ceil(np.multiply(w,scale)))
         im_data = imresample(img, (hs, ws))
-        im_data = (im_data-127.5)*0.0078125
+        im_data = (np.multiply(np.subtract(im_data,127.5),0.0078125))
         img_x = np.expand_dims(im_data, 0)
         img_y = np.transpose(img_x, (0, 2, 1, 3))
         out = pnet(img_y)
@@ -355,12 +355,12 @@ def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
     if numbox > 0:
         pick = nms(total_boxes.copy(), 0.7, 'Union')
         total_boxes = total_boxes[pick, :]
-        regw = total_boxes[:, 2]-total_boxes[:, 0]
-        regh = total_boxes[:, 3]-total_boxes[:, 1]
-        qq1 = total_boxes[:, 0]+total_boxes[:, 5]*regw
-        qq2 = total_boxes[:, 1]+total_boxes[:, 6]*regh
-        qq3 = total_boxes[:, 2]+total_boxes[:, 7]*regw
-        qq4 = total_boxes[:, 3]+total_boxes[:, 8]*regh
+        regw = np.subtract(total_boxes[:, 2],total_boxes[:, 0])
+        regh = np.subtract(total_boxes[:, 3],total_boxes[:, 1])
+        qq1 = np.add(total_boxes[:, 0],np.multiply(total_boxes[:, 5],regw))
+        qq2 = np.add(total_boxes[:, 1],np.multiply(total_boxes[:, 6],regh))
+        qq3 = np.add(total_boxes[:, 2],np.multiply(total_boxes[:, 7],regw))
+        qq4 = np.add(total_boxes[:, 3],np.multiply(total_boxes[:, 8],regh))
         total_boxes = np.transpose(
             np.vstack([qq1, qq2, qq3, qq4, total_boxes[:, 4]]))
         total_boxes = rerec(total_boxes.copy())
@@ -380,7 +380,7 @@ def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
                 tempimg[:, :, :, k] = imresample(tmp, (24, 24))
             else:
                 return np.empty()
-        tempimg = (tempimg-127.5)*0.0078125
+        tempimg = np.multiply((np.subtract(tempimg,127.5)),0.0078125)
         tempimg1 = np.transpose(tempimg, (3, 1, 0, 2))
         out = rnet(tempimg1)
         out0 = np.transpose(out[0])
@@ -411,7 +411,8 @@ def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
                 tempimg[:, :, :, k] = imresample(tmp, (48, 48))
             else:
                 return np.empty()
-        tempimg = (tempimg-127.5)*0.0078125
+        tempimg = np.multiply((np.subtract(tempimg,127.5)),0.0078125)
+        
         tempimg1 = np.transpose(tempimg, (3, 1, 0, 2))
         out = onet(tempimg1)
         out0 = np.transpose(out[0])
@@ -425,12 +426,11 @@ def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
             [total_boxes[ipass[0], 0:4].copy(), np.expand_dims(score[ipass].copy(), 1)])
         mv = out0[:, ipass[0]]
 
-        w = total_boxes[:, 2]-total_boxes[:, 0]+1
-        h = total_boxes[:, 3]-total_boxes[:, 1]+1
-        points[0:5, :] = np.tile(w, (5, 1))*points[0:5, :] + \
-            np.tile(total_boxes[:, 0], (5, 1))-1
-        points[5:10, :] = np.tile(
-            h, (5, 1))*points[5:10, :] + np.tile(total_boxes[:, 1], (5, 1))-1
+        w = np.subtract(total_boxes[:, 2] , np.add(total_boxes[:, 0] , 1))
+        h = np.subtract(total_boxes[:, 3],np.add(total_boxes[:, 1],1))
+        #h = total_boxes[:, 3]-np.add(total_boxes[:, 1]+1)
+        points[0:5,:] = np.add(np.multiply(np.tile(w,(5, 1)),points[0:5,:]) , np.subtract(np.tile(total_boxes[:,0],(5, 1)),1))
+        points[5:10,:] = np.add(np.multiply(np.tile(h,(5, 1)),points[5:10,:]) , np.subtract(np.tile(total_boxes[:,1],(5, 1)),1))
         if total_boxes.shape[0] > 0:
             total_boxes = bbreg(total_boxes.copy(), np.transpose(mv))
             pick = nms(total_boxes.copy(), 0.7, 'Min')
@@ -723,8 +723,8 @@ def generateBoundingBox(imap, reg, scale, t):
     if reg.size == 0:
         reg = np.empty((0, 3))
     bb = np.transpose(np.vstack([y, x]))
-    q1 = np.fix((stride*bb+1)/scale)
-    q2 = np.fix((stride*bb+cellsize-1+1)/scale)
+    q1 = np.fix(np.divide(np.add(np.multiply(stride,bb),1),scale))
+    q2 = np.fix(np.divide(np.add(np.multiply(stride,bb),(np.add(np.subtract(cellsize,1),1))),scale))
     boundingbox = np.hstack([q1, q2, np.expand_dims(score, 1), reg])
     return boundingbox, reg
 
