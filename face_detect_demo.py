@@ -109,7 +109,7 @@ def bbox_resizer(frame, bboxs, size_frame):
 
 
 class WebcamVideoStream:
-    def __init__(self, src=0, width=480, height=640, fps=30):
+    def __init__(self, src=0, width=480, height=640, fps=60):
         self.stream = cv2.VideoCapture(src)
         self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     while True:
         frame = vs.read()
         timestart = time.clock()
-        faces = getFace(frame, compress_frame=False)
+        faces = getFace(frame, compress_frame=True)
         print(time.clock()-timestart)
         for face in faces:
             cv2.rectangle(frame, (face['rect'][0], face['rect'][1]),
