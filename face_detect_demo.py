@@ -28,7 +28,7 @@ os.environ["NUMEXPR_NUM_THREADS"] = "20"  # export NUMEXPR_NUM_THREADS=6
 
 # some constants kept as default from facenet
 minsize = 50
-threshold = [0.60, 0.60, 0.60]
+threshold = [0.55, 0.60, 0.65]
 factor = 0.709
 margin = 0
 face_crop_size=160
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     while True:
         frame = vs.read()
         timestart = time.clock()
-        faces = getFace(frame, compress_frame=False)
+        faces = getFace(frame, compress_frame=True)
         print(time.clock()-timestart)
         for face in faces:
             cv2.rectangle(frame, (face['rect'][0], face['rect'][1]),

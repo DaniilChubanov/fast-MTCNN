@@ -670,8 +670,8 @@ def bulk_detect_face(images, detection_window_size_ratio, pnet, rnet, onet, thre
 
 
 # function [boundingbox] = bbreg(boundingbox,reg)
-"""
-def bbreg(boundingbox, reg):
+
+"""def bbreg(boundingbox, reg):
     if reg.shape[1] == 1:
         reg = np.reshape(reg, (reg.shape[2], reg.shape[3]))
 
@@ -683,12 +683,11 @@ def bbreg(boundingbox, reg):
     b4 = boundingbox[:, 3]+reg[:, 3]*h
     boundingbox[:, 0:4] = np.transpose(np.vstack([b1, b2, b3, b4]))
     return boundingbox
-"""
 
+"""
 def bbreg(boundingbox, reg):
     if reg.shape[1] == 1:
         reg = np.reshape(reg, (reg.shape[2], reg.shape[3]))
-
     w = np.add(np.subtract(boundingbox[:, 2], boundingbox[:, 0]),1)
     h = np.add(np.subtract(boundingbox[:, 3], boundingbox[:, 1]),1)
     b1 = np.add(boundingbox[:, 0],np.multiply(reg[:, 0], w))
@@ -698,8 +697,7 @@ def bbreg(boundingbox, reg):
     boundingbox[:, 0:4] = np.transpose(np.vstack([b1, b2, b3, b4]))
     return boundingbox
 
-
-@numba.autojit
+#@numba.autojit
 def generateBoundingBox(imap, reg, scale, t):
     """Use heatmap to generate bounding boxes"""
     stride = 2
